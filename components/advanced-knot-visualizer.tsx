@@ -7,17 +7,21 @@ import ControlPanel from "@/components/control-panel"
 import MathInfoPanel from "@/components/math-info-panel"
 import CustomKnotGenerator from "@/components/custom-knot-generator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ErrorBoundary } from "@/components/error-boundary"
 import dynamic from "next/dynamic"
 
-// Dynamically import the 3D renderer with no SSR
-const AdvancedKnotRenderer = dynamic(() => import("@/components/advanced-knot-renderer"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10">
-      <div className="text-white text-lg animate-pulse">Loading 3D Visualization...</div>
-    </div>
-  ),
-})
+// Try to load the 3D renderer, fallback to 2D if it fails
+const AdvancedKnotRenderer = dynamic(
+  () => import("@/components/advanced-knot-renderer").catch(() => import("@/components/simple-knot-renderer")),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10">
+        <div className="text-white text-lg animate-pulse">Loading Visualization...</div>
+      </div>
+    ),
+  },
+)
 
 interface AdvancedKnotVisualizerProps {
   onBack: () => void
@@ -96,7 +100,9 @@ export default function AdvancedKnotVisualizer({ onBack }: AdvancedKnotVisualize
 
         {/* Center - 3D Visualization */}
         <div className="xl:col-span-2">
-          <AdvancedKnotRenderer settings={settings} />
+          <ErrorBoundary>
+            <AdvancedKnotRenderer settings={settings} />
+          </ErrorBoundary>
         </div>
 
         {/* Right Panel - Custom Generator */}

@@ -1,8 +1,11 @@
 "use client"
 
-import { Suspense, useEffect, useState, useRef } from "react"
+import { useRef } from "react"
+
+import { Suspense, useEffect, useState } from "react"
 import { useMemo } from "react"
 import { useFrame } from "@react-three/fiber"
+import { AlertTriangle } from "lucide-react"
 
 interface AdvancedKnotRendererProps {
   settings: any
@@ -16,14 +19,37 @@ function LoadingFallback() {
   )
 }
 
+function ErrorFallback({ error }: { error: string }) {
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10">
+      <div className="text-center text-red-400">
+        <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
+        <p className="text-lg mb-2">3D Rendering Error</p>
+        <p className="text-sm opacity-70">{error}</p>
+        <p className="text-xs opacity-50 mt-2">Falling back to 2D view...</p>
+      </div>
+    </div>
+  )
+}
+
 export default function AdvancedKnotRenderer({ settings }: AdvancedKnotRendererProps) {
   const [isClient, setIsClient] = useState(false)
   const [ThreeComponents, setThreeComponents] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsClient(true)
 
-    // Dynamically import all Three.js components
+    // Check for WebGL support
+    const canvas = document.createElement("canvas")
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+
+    if (!gl) {
+      setError("WebGL not supported")
+      return
+    }
+
+    // Dynamically import all Three.js components with error handling
     Promise.all([import("@react-three/fiber"), import("@react-three/drei"), import("three")])
       .then(([fiber, drei, three]) => {
         setThreeComponents({
@@ -32,46 +58,68 @@ export default function AdvancedKnotRenderer({ settings }: AdvancedKnotRendererP
           Environment: drei.Environment,
           THREE: three,
         })
+        setError(null)
       })
       .catch((error) => {
         console.error("Failed to load Three.js components:", error)
+        setError("Failed to load 3D libraries")
       })
   }, [])
 
-  if (!isClient || !ThreeComponents) {
+  if (!isClient) {
     return <LoadingFallback />
   }
 
-  return (
-    <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10 h-full overflow-hidden">
-      <Suspense fallback={<LoadingFallback />}>
-        <ThreeComponents.Canvas camera={{ position: [0, 0, 8], fov: 50 }} className="w-full h-full">
-          {/* Enhanced Lighting */}
-          <ambientLight intensity={0.3} />
-          <pointLight position={[10, 10, 10]} intensity={1.2} color="#00ffff" />
-          <pointLight position={[-10, -10, -10]} intensity={0.8} color="#ff00ff" />
-          <pointLight position={[0, 10, 0]} intensity={0.6} color="#ffffff" />
+  if (error) {
+    return <ErrorFallback error={error} />
+  }
 
-          {/* Environment for reflections */}
-          <ThreeComponents.Environment preset="night" />
+  if (!ThreeComponents) {
+    return <LoadingFallback />
+  }
 
-          {/* Knot Mesh */}
-          <KnotMesh settings={settings} THREE={ThreeComponents.THREE} />
+  try {
+    return (
+      <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10 h-full overflow-hidden">
+        <Suspense fallback={<LoadingFallback />}>
+          <ThreeComponents.Canvas
+            camera={{ position: [0, 0, 8], fov: 50 }}
+            className="w-full h-full"
+            onError={(error: any) => {
+              console.error("Canvas error:", error)
+              setError("Canvas rendering failed")
+            }}
+          >
+            {/* Enhanced Lighting */}
+            <ambientLight intensity={0.3} />
+            <pointLight position={[10, 10, 10]} intensity={1.2} color="#00ffff" />
+            <pointLight position={[-10, -10, -10]} intensity={0.8} color="#ff00ff" />
+            <pointLight position={[0, 10, 0]} intensity={0.6} color="#ffffff" />
 
-          {/* Enhanced Controls */}
-          <ThreeComponents.OrbitControls
-            enablePan={true}
-            enableZoom={true}
-            enableRotate={true}
-            minDistance={2}
-            maxDistance={20}
-            autoRotate={settings.rotationSpeed > 0}
-            autoRotateSpeed={settings.rotationSpeed * 2}
-          />
-        </ThreeComponents.Canvas>
-      </Suspense>
-    </div>
-  )
+            {/* Environment for reflections */}
+            <ThreeComponents.Environment preset="night" />
+
+            {/* Knot Mesh */}
+            <KnotMesh settings={settings} THREE={ThreeComponents.THREE} />
+
+            {/* Enhanced Controls */}
+            <ThreeComponents.OrbitControls
+              enablePan={true}
+              enableZoom={true}
+              enableRotate={true}
+              minDistance={2}
+              maxDistance={20}
+              autoRotate={settings.rotationSpeed > 0}
+              autoRotateSpeed={settings.rotationSpeed * 2}
+            />
+          </ThreeComponents.Canvas>
+        </Suspense>
+      </div>
+    )
+  } catch (renderError) {
+    console.error("Render error:", renderError)
+    return <ErrorFallback error="Rendering failed" />
+  }
 }
 
 // Simplified knot mesh component
