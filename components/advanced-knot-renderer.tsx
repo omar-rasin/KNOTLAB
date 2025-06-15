@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
-import { Suspense, useEffect, useState } from "react"
+import { useState, useEffect } from "react"
+import SimpleKnotRenderer from "@/components/simple-knot-renderer"
 import { AlertTriangle } from "lucide-react"
 
 interface AdvancedKnotRendererProps {
@@ -12,7 +12,7 @@ interface AdvancedKnotRendererProps {
 function LoadingFallback() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10">
-      <div className="text-white text-lg animate-pulse">Loading 3D Visualization...</div>
+      <div className="text-white text-lg animate-pulse">Loading...</div>
     </div>
   )
 }
@@ -36,6 +36,7 @@ function ErrorFallback({ error, onRetry }: { error: string; onRetry: () => void 
 }
 
 export default function AdvancedKnotRenderer({ settings }: AdvancedKnotRendererProps) {
+  const [use3D, setUse3D] = useState(true)
   const [isClient, setIsClient] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [Canvas, setCanvas] = useState<any>(null)
@@ -113,18 +114,25 @@ export default function AdvancedKnotRenderer({ settings }: AdvancedKnotRendererP
     return <ErrorFallback error={error} onRetry={handleRetry} />
   }
 
-  if (!Canvas) {
-    return <LoadingFallback />
-  }
-
   return (
-    <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10 h-full overflow-hidden relative">
-      <Suspense fallback={<LoadingFallback />}>
+    <div className="relative w-full h-full">
+      {use3D ? (
         <Canvas>
           <KnotMesh settings={settings} />
         </Canvas>
-      </Suspense>
-      <div className="absolute bottom-4 left-4 text-white/60 text-sm">3D View - {settings.selectedKnot} knot</div>
+      ) : (
+        <SimpleKnotRenderer settings={settings} />
+      )}
+
+      {/* Toggle button */}
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={() => setUse3D(!use3D)}
+          className="px-3 py-1 bg-black/50 text-white text-xs rounded border border-white/20 hover:bg-black/70 transition-colors"
+        >
+          {use3D ? "2D View" : "3D View"}
+        </button>
+      </div>
     </div>
   )
 }
