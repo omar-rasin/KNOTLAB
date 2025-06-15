@@ -1,10 +1,8 @@
 "use client"
 
-import { useRef } from "react"
+import type React from "react"
 
 import { Suspense, useEffect, useState } from "react"
-import { useMemo } from "react"
-import { useFrame } from "@react-three/fiber"
 import { AlertTriangle } from "lucide-react"
 
 interface AdvancedKnotRendererProps {
@@ -14,19 +12,24 @@ interface AdvancedKnotRendererProps {
 function LoadingFallback() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10">
-      <div className="text-white text-lg animate-pulse">Initializing 3D Engine...</div>
+      <div className="text-white text-lg animate-pulse">Loading 3D Visualization...</div>
     </div>
   )
 }
 
-function ErrorFallback({ error }: { error: string }) {
+function ErrorFallback({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <div className="w-full h-full flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10">
-      <div className="text-center text-red-400">
-        <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
-        <p className="text-lg mb-2">3D Rendering Error</p>
-        <p className="text-sm opacity-70">{error}</p>
-        <p className="text-xs opacity-50 mt-2">Falling back to 2D view...</p>
+      <div className="text-center">
+        <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-400" />
+        <p className="text-lg mb-2 text-white">3D Rendering Issue</p>
+        <p className="text-sm opacity-70 text-white/70 mb-4">{error}</p>
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     </div>
   )
@@ -34,155 +37,171 @@ function ErrorFallback({ error }: { error: string }) {
 
 export default function AdvancedKnotRenderer({ settings }: AdvancedKnotRendererProps) {
   const [isClient, setIsClient] = useState(false)
-  const [ThreeComponents, setThreeComponents] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [Canvas, setCanvas] = useState<any>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     setIsClient(true)
+    loadThreeJS()
+  }, [retryCount])
 
-    // Check for WebGL support
-    const canvas = document.createElement("canvas")
-    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+  const loadThreeJS = async () => {
+    try {
+      setError(null)
 
-    if (!gl) {
-      setError("WebGL not supported")
-      return
+      // Check WebGL support
+      const canvas = document.createElement("canvas")
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+
+      if (!gl) {
+        throw new Error("WebGL is not supported in your browser")
+      }
+
+      // Dynamic imports
+      const [{ Canvas: R3FCanvas }, { OrbitControls, Environment }] = await Promise.all([
+        import("@react-three/fiber"),
+        import("@react-three/drei"),
+      ])
+
+      // Create the Canvas component
+      const ThreeCanvas = ({ children }: { children: React.ReactNode }) => (
+        <R3FCanvas
+          camera={{ position: [0, 0, 8], fov: 50 }}
+          className="w-full h-full"
+          gl={{ antialias: true, alpha: true }}
+          onCreated={({ gl }) => {
+            gl.setClearColor(0x000000, 0)
+          }}
+        >
+          <ambientLight intensity={0.4} />
+          <pointLight position={[10, 10, 10]} intensity={1} color="#8b5cf6" />
+          <pointLight position={[-10, -10, -10]} intensity={0.5} color="#06b6d4" />
+
+          <Environment preset="night" />
+
+          {children}
+
+          <OrbitControls
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            minDistance={3}
+            maxDistance={15}
+            autoRotate={settings.rotationSpeed > 0}
+            autoRotateSpeed={settings.rotationSpeed}
+          />
+        </R3FCanvas>
+      )
+
+      setCanvas(() => ThreeCanvas)
+    } catch (err: any) {
+      console.error("Failed to load Three.js:", err)
+      setError(err.message || "Failed to initialize 3D rendering")
     }
+  }
 
-    // Dynamically import all Three.js components with error handling
-    Promise.all([import("@react-three/fiber"), import("@react-three/drei"), import("three")])
-      .then(([fiber, drei, three]) => {
-        setThreeComponents({
-          Canvas: fiber.Canvas,
-          OrbitControls: drei.OrbitControls,
-          Environment: drei.Environment,
-          THREE: three,
-        })
-        setError(null)
-      })
-      .catch((error) => {
-        console.error("Failed to load Three.js components:", error)
-        setError("Failed to load 3D libraries")
-      })
-  }, [])
+  const handleRetry = () => {
+    setRetryCount((prev) => prev + 1)
+  }
 
   if (!isClient) {
     return <LoadingFallback />
   }
 
   if (error) {
-    return <ErrorFallback error={error} />
+    return <ErrorFallback error={error} onRetry={handleRetry} />
   }
 
-  if (!ThreeComponents) {
+  if (!Canvas) {
     return <LoadingFallback />
   }
 
-  try {
-    return (
-      <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10 h-full overflow-hidden">
-        <Suspense fallback={<LoadingFallback />}>
-          <ThreeComponents.Canvas
-            camera={{ position: [0, 0, 8], fov: 50 }}
-            className="w-full h-full"
-            onError={(error: any) => {
-              console.error("Canvas error:", error)
-              setError("Canvas rendering failed")
-            }}
-          >
-            {/* Enhanced Lighting */}
-            <ambientLight intensity={0.3} />
-            <pointLight position={[10, 10, 10]} intensity={1.2} color="#00ffff" />
-            <pointLight position={[-10, -10, -10]} intensity={0.8} color="#ff00ff" />
-            <pointLight position={[0, 10, 0]} intensity={0.6} color="#ffffff" />
-
-            {/* Environment for reflections */}
-            <ThreeComponents.Environment preset="night" />
-
-            {/* Knot Mesh */}
-            <KnotMesh settings={settings} THREE={ThreeComponents.THREE} />
-
-            {/* Enhanced Controls */}
-            <ThreeComponents.OrbitControls
-              enablePan={true}
-              enableZoom={true}
-              enableRotate={true}
-              minDistance={2}
-              maxDistance={20}
-              autoRotate={settings.rotationSpeed > 0}
-              autoRotateSpeed={settings.rotationSpeed * 2}
-            />
-          </ThreeComponents.Canvas>
-        </Suspense>
-      </div>
-    )
-  } catch (renderError) {
-    console.error("Render error:", renderError)
-    return <ErrorFallback error="Rendering failed" />
-  }
+  return (
+    <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/10 h-full overflow-hidden relative">
+      <Suspense fallback={<LoadingFallback />}>
+        <Canvas>
+          <KnotMesh settings={settings} />
+        </Canvas>
+      </Suspense>
+      <div className="absolute bottom-4 left-4 text-white/60 text-sm">3D View - {settings.selectedKnot} knot</div>
+    </div>
+  )
 }
 
-// Simplified knot mesh component
-function KnotMesh({ settings, THREE }: { settings: any; THREE: any }) {
-  const meshRef = useRef<any>(null)
+// Simplified Knot Mesh Component
+function KnotMesh({ settings }: { settings: any }) {
+  const [mesh, setMesh] = useState<any>(null)
 
-  // Generate simple knot geometry
-  const geometry = useMemo(() => {
-    if (!THREE) return null
+  useEffect(() => {
+    const createKnotGeometry = async () => {
+      try {
+        const THREE = await import("three")
 
-    const points: any[] = []
+        const points: THREE.Vector3[] = []
 
-    // Generate points based on knot type
-    for (let i = 0; i <= 200; i++) {
-      const t = (i / 200) * Math.PI * 2
-      let x, y, z
+        // Generate knot points
+        for (let i = 0; i <= 300; i++) {
+          const t = (i / 300) * Math.PI * 2
+          let x, y, z
 
-      switch (settings.selectedKnot) {
-        case "trefoil":
-          x = Math.sin(t) + 2 * Math.sin(2 * t)
-          y = Math.cos(t) - 2 * Math.cos(2 * t)
-          z = -Math.sin(3 * t)
-          break
-        case "figure-eight":
-          x = (2 + Math.cos(2 * t)) * Math.cos(3 * t)
-          y = (2 + Math.cos(2 * t)) * Math.sin(3 * t)
-          z = Math.sin(4 * t)
-          break
-        case "cinquefoil":
-          x = Math.cos(2 * t) * (3 + Math.cos(5 * t))
-          y = Math.sin(2 * t) * (3 + Math.cos(5 * t))
-          z = Math.sin(5 * t)
-          break
-        default:
-          x = Math.sin(t) + 2 * Math.sin(2 * t)
-          y = Math.cos(t) - 2 * Math.cos(2 * t)
-          z = -Math.sin(3 * t)
+          switch (settings.selectedKnot) {
+            case "trefoil":
+              x = Math.sin(t) + 2 * Math.sin(2 * t)
+              y = Math.cos(t) - 2 * Math.cos(2 * t)
+              z = -Math.sin(3 * t)
+              break
+            case "figure-eight":
+              x = (2 + Math.cos(2 * t)) * Math.cos(3 * t)
+              y = (2 + Math.cos(2 * t)) * Math.sin(3 * t)
+              z = Math.sin(4 * t)
+              break
+            case "cinquefoil":
+              x = Math.cos(2 * t) * (3 + Math.cos(5 * t))
+              y = Math.sin(2 * t) * (3 + Math.cos(5 * t))
+              z = Math.sin(5 * t)
+              break
+            case "hopf-link":
+              x = Math.cos(t) * (2 + Math.cos(2 * t))
+              y = Math.sin(t) * (2 + Math.cos(2 * t))
+              z = Math.sin(2 * t)
+              break
+            case "torus-knot":
+              x = Math.cos(2 * t) * (3 + Math.cos(7 * t))
+              y = Math.sin(2 * t) * (3 + Math.cos(7 * t))
+              z = Math.sin(7 * t)
+              break
+            default:
+              x = Math.sin(t) + 2 * Math.sin(2 * t)
+              y = Math.cos(t) - 2 * Math.cos(2 * t)
+              z = -Math.sin(3 * t)
+          }
+
+          points.push(new THREE.Vector3(x * 1.2, y * 1.2, z * 1.2))
+        }
+
+        const curve = new THREE.CatmullRomCurve3(points, true)
+        const geometry = new THREE.TubeGeometry(curve, 300, 0.15, 16, true)
+
+        setMesh({ geometry })
+      } catch (error) {
+        console.error("Error creating knot geometry:", error)
       }
-
-      points.push(new THREE.Vector3(x * 1.5, y * 1.5, z * 1.5))
     }
 
-    const curve = new THREE.CatmullRomCurve3(points, true)
-    return new THREE.TubeGeometry(curve, 200, 0.12, 16, true)
-  }, [settings.selectedKnot, THREE])
+    createKnotGeometry()
+  }, [settings.selectedKnot])
 
-  // Animation
-  useFrame((state, delta) => {
-    if (meshRef.current && settings.rotationSpeed > 0) {
-      meshRef.current.rotation.y += delta * settings.rotationSpeed * 0.5
-      meshRef.current.rotation.x += delta * settings.rotationSpeed * 0.3
-    }
-  })
-
-  if (!geometry) return null
+  if (!mesh) {
+    return null
+  }
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
+    <mesh geometry={mesh.geometry}>
       <meshStandardMaterial
         color="#8b5cf6"
-        metalness={0.8}
-        roughness={0.2}
-        envMapIntensity={1}
+        metalness={0.7}
+        roughness={0.3}
         emissive="#4c1d95"
         emissiveIntensity={0.1}
       />
