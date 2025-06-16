@@ -106,4 +106,3 @@ This project is more than a visualizer — it’s a hands-on mathematical lab fo
 ✅ High-performance rendering and interaction
 
 ---
-

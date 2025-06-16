@@ -94,7 +94,7 @@ importers:
         version: 1.2.7(@types/react-dom@18.0.0)(@types/react@18.0.0)(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
       '@react-three/drei':
         specifier: latest
-        version: 10.2.0(76ba6efd59d2e1518e452e50a608f49c)
+        version: 10.3.0(76ba6efd59d2e1518e452e50a608f49c)
       '@react-three/fiber':
         specifier: latest
         version: 9.1.2(@types/react@18.0.0)(expo-asset@11.1.5(expo@53.0.11(@babel/core@7.27.4)(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0))(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0))(expo-file-system@18.1.10(expo@53.0.11(@babel/core@7.27.4)(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0))(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0)))(expo-gl@15.1.6(expo@53.0.11(@babel/core@7.27.4)(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0))(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0))(expo@53.0.11(@babel/core@7.27.4)(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0))(react-dom@18.0.0(react@18.0.0))(react-native@0.80.0(@babel/core@7.27.4)(@types/react@18.0.0)(react@18.0.0))(react@18.0.0)(three@0.177.0)
@@ -1893,8 +1893,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@react-three/drei@10.2.0':
-    resolution: {integrity: sha512-zd65A1f4Wy6rPt1kro0ZVNXl0D4CMzmwb8TU0yNOrnGquHB41hZcncRMPf9G4D4ue8mmIrYNv//8Gjexl2T8Kg==}
+  '@react-three/drei@10.3.0':
+    resolution: {integrity: sha512-+4NHCAUI38jp8XlbuKKWl/23y3F/JKdkvnYsrVXxhw150OyWKJoft+Yyd7dl6awxfV/Gn08x3R9pRRFUuDQwDA==}
     peerDependencies:
       '@react-three/fiber': ^9.0.0
       react: ^19
@@ -6447,7 +6447,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.0.0
 
-  '@react-three/drei@10.2.0(76ba6efd59d2e1518e452e50a608f49c)':
+  '@react-three/drei@10.3.0(76ba6efd59d2e1518e452e50a608f49c)':
     dependencies:
       '@babel/runtime': 7.27.6
       '@mediapipe/tasks-vision': 0.10.17
